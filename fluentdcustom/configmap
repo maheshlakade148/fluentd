@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-info
+data:
+  clustername: dcluster
+  region: ap-northeast-1
+  customapplogpath: /opt/nifi-1.8.0/logs 
+  customlogsappfilename: nifi-app.log
