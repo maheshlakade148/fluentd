@@ -1,0 +1,83 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: fluentd-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fluentd-role
+subjects:
+  - kind: ServiceAccount
+    name: fluentd
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: fluentd-role
+rules:
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - pods
+      - pods/logs
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fluentd
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-sidecar
+spec:
+  serviceAccountName: fluentd      
+  volumes:
+  - name: shared-logs 
+    emptyDir: {}
+  containers:
+  - name: myapp-container
+    image: local-docker-snapshot.artifactory.tokyo.hitachisaas.com/mfi-sowd/nifi-1.8.0:1.0
+    ports:
+    - containerPort: 8080
+    env:
+    - name: HOST
+      value: "Dev"     
+    - name: ALLOW_ANONYMOUS_LOGIN
+      value: "yes"
+    volumeMounts:
+     - mountPath: /opt/nifi-1.8.0/logs  #Add custom path of application here.  That will be application logs location. 
+       name: shared-logs 
+
+  - name: mysidecar-container
+    image: ltd-agentsidecar:22
+    ports:
+      - containerPort: 80
+    env:
+    - name: REGION
+      valueFrom:
+        configMapKeyRef:
+          name: cluster-info 
+          key: region     
+    - name: CLUSTER_NAME
+      valueFrom:
+        configMapKeyRef:
+          name: cluster-info
+          key: clustername 
+    - name: customapplogpath
+      valueFrom:
+        configMapKeyRef:
+          name: cluster-info
+          key: customapplogpath 
+    - name: customlogsappfilename
+      valueFrom:
+        configMapKeyRef:
+          name: cluster-info
+          key: customlogsappfilename
+    volumeMounts:
+    - name: shared-logs
+      mountPath: /var/log/customlogs
